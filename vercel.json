@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "vercel-server-test.js",
+      "src": "vercel-server.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "vercel-server-test.js"
+      "dest": "vercel-server.js"
     }
   ],
   "regions": ["iad1"],

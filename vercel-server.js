@@ -47,7 +47,9 @@ const initializeConnections = async () => {
     }
   } catch (error) {
     logger.error("❌ Failed to initialize connections:", error);
-    throw error;
+    // Don't throw error - allow app to start without databases
+    // This enables basic health checks and API responses even without DB
+    logger.warn("⚠️ Continuing without database connections - limited functionality available");
   }
 };
 
@@ -84,19 +86,24 @@ app.get("/health", (req, res) => {
     status: "OK",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: "vercel-serverless"
+    environment: "vercel-serverless",
+    databases: {
+      mongodb: dbConnected ? "connected" : "disconnected",
+      redis: redisConnected ? "connected" : "disconnected"
+    },
+    note: (!dbConnected || !redisConnected) ? "Limited functionality - databases not configured" : "Fully operational"
   });
 });
 
-// Initialize connections middleware
+// Initialize connections middleware (non-blocking)
 app.use(async (req, res, next) => {
   try {
     await initializeConnections();
-    next();
   } catch (error) {
     logger.error("Connection initialization failed:", error);
-    res.status(500).json({ error: "Database connection failed" });
   }
+  // Always continue, even if connections fail
+  next();
 });
 
 // API Routes
