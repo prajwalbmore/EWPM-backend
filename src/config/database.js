@@ -3,7 +3,7 @@ import logger from '../utils/logger.js';
 
 const connectDB = async () => {
   try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ewpm';
+    const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/ewpm';
     
     const options = {
       useNewUrlParser: true,
@@ -14,7 +14,6 @@ const connectDB = async () => {
 
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
 
-    // Handle connection events
     mongoose.connection.on('error', (err) => {
       logger.error('MongoDB connection error:', err);
     });
@@ -23,7 +22,6 @@ const connectDB = async () => {
       logger.warn('MongoDB disconnected');
     });
 
-    // Graceful shutdown
     process.on('SIGINT', async () => {
       await mongoose.connection.close();
       logger.info('MongoDB connection closed through app termination');

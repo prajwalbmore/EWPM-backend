@@ -17,5 +17,10 @@ router.put('/:id', authorize('SUPER_ADMIN', 'ORG_ADMIN'), userController.updateU
 router.delete('/:id', authorize('SUPER_ADMIN', 'ORG_ADMIN'), userController.deleteUser);
 router.put('/:id/role', authorize('SUPER_ADMIN', 'ORG_ADMIN'), userController.updateUserRole);
 
+// Profile routes (current user only)
+router.get('/profile/me', userController.getCurrentUserProfile);
+router.put('/profile/me', userController.updateCurrentUserProfile);
+router.put('/profile/change-password', userController.changePassword);
+
 export default router;
 

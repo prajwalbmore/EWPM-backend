@@ -56,6 +56,14 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  resetToken: {
+    type: String,
+    select: false
+  },
+  resetTokenExpiry: {
+    type: Date,
+    select: false
+  },
   permissions: [{
     type: String
   }]

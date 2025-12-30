@@ -7,9 +7,9 @@ const connectRedis = async () => {
   try {
     redisClient = createClient({
       socket: {
-        host: process.env.REDIS_HOST || '127.0.0.1', // 🔥 FIX
+        host: process.env.REDIS_HOST || '127.0.0.1', 
         port: Number(process.env.REDIS_PORT) || 6379,
-        connectTimeout: 10_000, // 🔥 prevent infinite wait
+        connectTimeout: 10_000, 
         reconnectStrategy: (retries) => {
           if (retries > 2) {
             logger.error('Redis reconnect failed after 5 attempts');

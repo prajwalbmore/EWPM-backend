@@ -102,13 +102,10 @@ projectSchema.index({ tenantId: 1, ownerId: 1 });
 projectSchema.index({ tenantId: 1, managerId: 1 });
 projectSchema.index({ 'members.userId': 1 });
 
-// Virtual for progress calculation
 projectSchema.virtual('progress').get(function() {
-  // This would be calculated based on tasks
   return 0;
 });
 
-// Method to check if project can be closed
 projectSchema.methods.canClose = async function() {
   const Task = mongoose.model('Task');
   const openTasks = await Task.countDocuments({

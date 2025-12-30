@@ -329,3 +329,132 @@ export const updateUserRole = async (req, res, next) => {
   }
 };
 
+// Get current user profile
+export const getCurrentUserProfile = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password -refreshToken');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    logger.error('Get current user profile error:', error);
+    next(error);
+  }
+};
+
+// Update current user profile
+export const updateCurrentUserProfile = async (req, res, next) => {
+  try {
+    const { firstName, lastName, email } = req.body;
+
+    // Find the current user
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const before = user.toObject();
+
+    // Update allowed fields
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (email !== undefined) user.email = email;
+
+    await user.save();
+
+    // Create audit log
+    await createAuditLog({
+      tenantId: user.tenantId,
+      userId: req.user.id,
+      action: 'UPDATE',
+      resourceType: 'USER',
+      resourceId: user._id,
+      changes: { before, after: user.toObject() },
+      metadata: {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent')
+      }
+    });
+
+    res.json({
+      success: true,
+      data: user,
+      message: 'Profile updated successfully'
+    });
+  } catch (error) {
+    logger.error('Update current user profile error:', error);
+    next(error);
+  }
+};
+
+// Change current user password
+export const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    // Create audit log
+    await createAuditLog({
+      tenantId: user.tenantId,
+      userId: req.user.id,
+      action: 'UPDATE',
+      resourceType: 'USER',
+      resourceId: user._id,
+      changes: { passwordChanged: true },
+      metadata: {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent')
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    logger.error('Change password error:', error);
+    next(error);
+  }
+};
+

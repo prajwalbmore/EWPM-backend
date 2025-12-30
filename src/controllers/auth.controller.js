@@ -1,8 +1,10 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { getRedisClient } from '../config/redis.js';
 import User from '../models/User.model.js';
 import Tenant from '../models/Tenant.model.js';
 import { createAuditLog } from '../services/audit.service.js';
+import { sendPasswordResetEmail } from '../services/email.service.js';
 import logger from '../utils/logger.js';
 
 // Generate JWT tokens
@@ -347,18 +349,151 @@ export const changePassword = async (req, res, next) => {
 };
 
 export const forgotPassword = async (req, res, next) => {
-  // TODO: Implement forgot password functionality
-  res.status(501).json({
-    success: false,
-    message: 'Forgot password not implemented yet'
-  });
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email, isActive: true });
+    if (!user) {
+      // Don't reveal if email exists or not for security
+      return res.json({
+        success: true,
+        message: 'If an account with this email exists, a password reset link has been sent.'
+      });
+    }
+
+    // Generate secure reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    // Store token in user document with expiration (15 minutes)
+    user.resetToken = resetTokenHash;
+    user.resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    await user.save();
+
+    // Send password reset email
+    try {
+      await sendPasswordResetEmail(email, resetToken, `${user.firstName} ${user.lastName}`);
+
+      // Create audit log
+      await createAuditLog({
+        tenantId: user.tenantId,
+        userId: user._id,
+        action: 'PASSWORD_RESET_REQUEST',
+        resourceType: 'USER',
+        resourceId: user._id,
+        metadata: {
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          email: email
+        }
+      });
+
+      res.json({
+        success: true,
+        message: 'If an account with this email exists, a password reset link has been sent.'
+      });
+    } catch (emailError) {
+      logger.error('Failed to send password reset email:', emailError);
+
+      // Clear reset token from user if email fails
+      user.resetToken = null;
+      user.resetTokenExpiry = null;
+      await user.save();
+
+      // Check if it's a configuration error
+      if (emailError.message.includes('Email service not configured')) {
+        return res.status(500).json({
+          success: false,
+          message: 'Email service is not configured. Please contact support.',
+          error: 'SMTP_NOT_CONFIGURED'
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send password reset email. Please try again.',
+        error: emailError.message
+      });
+    }
+  } catch (error) {
+    logger.error('Forgot password error:', error);
+    next(error);
+  }
 };
 
 export const resetPassword = async (req, res, next) => {
-  // TODO: Implement reset password functionality
-  res.status(501).json({
-    success: false,
-    message: 'Reset password not implemented yet'
-  });
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token and new password are required'
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long'
+      });
+    }
+
+    // Hash the token to match stored hash
+    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user by reset token and check expiry
+    const user = await User.findOne({
+      resetToken: resetTokenHash,
+      resetTokenExpiry: { $gt: new Date() }, // Token not expired
+      isActive: true
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Update password and clear reset token
+    user.password = newPassword;
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
+    await user.save();
+
+    // Create audit log
+    await createAuditLog({
+      tenantId: user.tenantId,
+      userId: user._id,
+      action: 'PASSWORD_RESET',
+      resourceType: 'USER',
+      resourceId: user._id,
+      changes: {
+        field: 'password'
+      },
+      metadata: {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent')
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully. You can now login with your new password.'
+    });
+  } catch (error) {
+    logger.error('Reset password error:', error);
+    next(error);
+  }
 };
 

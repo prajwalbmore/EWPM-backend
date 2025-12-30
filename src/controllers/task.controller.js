@@ -343,13 +343,13 @@ export const  updateTaskStatus = async (req, res, next) => {
       }
     }
 
-    // Validate status transition
-    if (!task.canTransitionTo(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid status transition from ${task.status} to ${status}`
-      });
-    }
+      // // Validate status transition
+      // if (!task.canTransitionTo(status)) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: `Invalid status transition from ${task.status} to ${status}`
+      //   });
+      // }
 
     const before = task.toObject();
     const oldStatus = task.status;

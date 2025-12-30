@@ -16,19 +16,14 @@ export const getAuditLogs = async (req, res, next) => {
       if (endDate) query.timestamp.$lte = new Date(endDate);
     }
 
-    // Get all SUPER_ADMIN user IDs to exclude their logs
     const superAdminUsers = await User.find({ role: 'SUPER_ADMIN' }).select('_id');
     const superAdminIds = superAdminUsers.map(u => u._id);
     
-    // Exclude logs from SUPER_ADMIN users
-    // If userId filter is provided, keep it but also exclude SUPER_ADMIN
-    // If no userId filter, just exclude SUPER_ADMIN
+
     if (superAdminIds.length > 0) {
       if (query.userId) {
-        // If filtering by specific userId, ensure it's not a SUPER_ADMIN
         query.userId = { $eq: query.userId, $nin: superAdminIds };
       } else {
-        // Exclude all SUPER_ADMIN logs
         query.userId = { $nin: superAdminIds };
       }
     }
@@ -39,13 +34,11 @@ export const getAuditLogs = async (req, res, next) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    // Filter out any SUPER_ADMIN logs that might have slipped through (double check)
     const filteredLogs = logs.filter(log => {
       const userRole = log.userId?.role || (log.userId?.constructor?.name === 'Object' ? null : null);
       return userRole !== 'SUPER_ADMIN';
     });
 
-    // Re-count excluding SUPER_ADMIN
     const countQuery = { tenantId: req.tenantId };
     if (action) countQuery.action = action;
     if (resourceType) countQuery.resourceType = resourceType;
@@ -55,7 +48,6 @@ export const getAuditLogs = async (req, res, next) => {
       if (endDate) countQuery.timestamp.$lte = new Date(endDate);
     }
     
-    // Apply same SUPER_ADMIN exclusion to count query
     if (superAdminIds.length > 0) {
       if (userId) {
         countQuery.userId = { $eq: userId, $nin: superAdminIds };
