@@ -8,10 +8,13 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/scripts/seed.js",
+    "vercel-seed": "node src/scripts/seed.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.js",
-    "lint:fix": "eslint src/**/*.js --fix"
+    "lint:fix": "eslint src/**/*.js --fix",
+    "vercel-deploy": "vercel --prod",
+    "vercel-dev": "vercel dev"
   },
   "keywords": [
     "enterprise",

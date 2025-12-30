@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "vercel-server-test.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "vercel-server-test.js"
+    }
+  ],
+  "regions": ["iad1"],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
